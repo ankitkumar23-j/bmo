@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BMO HRFS Study Reference</title>
+  
+  <!-- Load React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Load Babel Standalone to compile JSX dynamically in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="margin: 0; padding: 0;">
+
+  <div id="root"></div>
+
+  <!-- Note the type="text/babel" attribute, required for JSX processing -->
+  <script type="text/babel">
+    const { useState, useMemo, useRef } = React;
+
+    const TOPICS = [
+      { id: 1, num: "1", title: "Institutional Foundations", category: "General", flagged: false,
+        body: "HRFS = Human Resources Financial Services: payroll, benefits, and workforce budgets across BMO Canada and US, coordinated through Workday. BMO is the 7th largest bank in North America, 55,000+ employees.",
+        facts: ["Bank of the People (1842) — Canada", "Molsons Bank (1925) — Canada", "Nesbitt Thomson (1987) — Canada, investment", "Harris Bank, Chicago (1984) — US", "M&I Bank (2011) — US, Wisconsin", "Bank of the West (2023) — US West Coast, $16.3B", "Employee status auditable via: Profile > Position Link"] },
+      { id: 2, num: "1B", title: "Business Units & Employee Types", category: "General", flagged: false,
+        body: "Canada business units: BS Unit, Air Miles, BMO Nesbitt. US business units: BMO Harris, BMO Bank of the West.",
+        facts: ["Regular Employee — permanent staff status", "Fixed E.M. / Temporary — fixed-duration contract", "Casual Employee — hourly, as-needed schedule", "Contractual Employee — external resource, profile marked with (C) suffix"] },
+      { id: 3, num: "2", title: "ABBR — Annual Benefits Base Rate", category: "Benefits", flagged: false,
+        body: "ABBR is the GREATER of: (1) annual base pay + average of previous 2 years' commissions, or (2) salary range midpoint. Drives life insurance, LTD, ESOP, and pension calculations.",
+        facts: ["Nav: BMO HR Home > Benefits > Benefits at a Glance > Benefits Base Rate", "Example: $70k base + avg $20k commission = $90k vs $85k midpoint → ABBR = $90k"] },
+      { id: 4, num: "2B", title: "Compensation Types & FTE", category: "Compensation", flagged: false,
+        body: "Salaried (fixed pay), Commission (sales-based), or Commission + Fixed Base. FTE Hourly Rate = Bi-Weekly Pay ÷ Weekly Hours.",
+        facts: ["Canada standard week: 37.5 hours", "US standard week: 40 hours"] },
+      { id: 5, num: "3", title: "Payment & Tax Elections", category: "Onboarding", flagged: false,
+        body: "Payment elections: Workday > Pay > Payment Elections > Add/Edit. Tax elections: Workday > Pay > Withholding Elections. Canada uses TD1, US uses W-4.",
+        rule: "Payment changes only Inside the BMO Network. HRC gives navigation help only — never a recommended dollar amount.",
+        facts: ["Canada: 1 bank account max", "US: up to 3 accounts (split pay)", "Changes take 1-2 pay periods to implement"] },
+      { id: 6, num: "4", title: "Before-Tax Deductions", category: "Deductions", flagged: false,
+        body: "Reference: KB-321014. Reduces taxable income before tax is calculated — subtracted from gross earnings before statutory taxes are computed.",
+        facts: ["Canada: ESOP, RSP", "US: Medical, Dental, Vision, LTD premiums, 401(k)"] },
+      { id: 7, num: "5", title: "CPP / QPP", category: "Canadian Tax", flagged: false,
+        body: "Reference: KB-322333. Government pension via Canada Life. Contribution ceiling auto-stops around Nov/Dec, resets in January.",
+        facts: ["Form CPT30 (CPP): ages 65-69, auto-stop at 70", "Form RR-50-V (QPP): ages 65-72, auto-stop at 73", "Neither form can be backdated; once per year"] },
+      { id: 8, num: "5B", title: "Post-Tax Deductions", category: "Deductions", flagged: false,
+        body: "Deducted after tax is already withheld — does not reduce taxable income.",
+        facts: ["BMO Card payments", "Life insurance top-ups", "Medical / Dental top-ups", "LTD supplemental premiums", "Charity / donations"] },
+      { id: 9, num: "6", title: "Employment Insurance (EI)", category: "Canadian Tax", flagged: false,
+        body: "Reference: KB-324272 (not 323472). No age exemptions — every employee contributes regardless of age.",
+        facts: ["2026 MIE cap: $68,900", "Outside Quebec: 1.63% (max $1,123.07)", "Inside Quebec: 1.30% (max $895.70)", "BMO match: 1.4x"] },
+      { id: 10, num: "7", title: "OASDI / FICA (US)", category: "US Tax", flagged: false,
+        body: "Reference: KB-319901. Social Security component of FICA. Rate 6.2%, capped at $184,500 wage base (2026). ✓ Resolved: confirmed wage-base-only, no age exemption.",
+        rule: "Mid-year hires: BMO US withholds OASDI from zero even if the cap was already hit at a previous employer. Employee reclaims via year-end IRS filing." },
+      { id: 28, num: "7C", title: "Medicare Threshold Conflict", category: "US Tax", flagged: true,
+        flagNote: "Source manual states Medicare has 'no maximum wage limit' in one place, then lists an 'Additional Medicare Deduction Threshold (>$200,000): 1.45%' elsewhere — internally inconsistent. May refer to the real-world 0.9% Additional Medicare Tax surtax above $200k, but that's inferred, not confirmed by the source.",
+        body: "Standard Medicare: 1.45% employee / 1.45% employer, no cap. A second, possibly-conflicting note references a $200,000 threshold." },
+      { id: 11, num: "7B", title: "Medicare Tax", category: "US Tax", flagged: false,
+        body: "Separate FICA component from OASDI. No wage ceiling.",
+        facts: ["Employee rate: 1.45%", "Employer match: 1.45%", "No maximum wage limit"] },
+      { id: 12, num: "8", title: "Year-End Tax Slips", category: "Tax Reporting", flagged: false,
+        body: "Reference: KB-323035.",
+        facts: ["T4 (Canada) → active employees + CRA", "T4A (Canada) → retirees", "RL1 / RL2 (Quebec) → employment / retirement income", "W-2 (US) → active employees + IRS, NOT issued by Alight Payroll"],
+        rule: "T4A or RL2 inquiry → transfer immediately to the Pension Department. Do not attempt to resolve." },
+      { id: 13, num: "9", title: "T2200 — Work From Home (Canada)", category: "Canadian Tax", flagged: false,
+        body: "Formal Declaration of Conditions of Employment slip required for CRA/MRQ tax filings on home office expenses.",
+        facts: ["Nav: BMO HR Home > Compensation > About Your Pay > Taxation and Payroll Deductions > Work from home expenses", "Generated automatically for eligible salaried employees (remote and hybrid) and commission employees", "Must meet CRA and MRQ structural guidelines"] },
+      { id: 14, num: "10", title: "Imputed Income", category: "Benefits", flagged: false,
+        body: "Reference: KB-323595. Taxable value of non-cash perks (gift cards, awards) recorded as earnings — never cash payments. Rolls into year-end W-2/T4.",
+        facts: ["Applies at federal, state, and local level (US)", "Applies at federal and provincial level (Canada)", "Tax liability evaluated and deducted dynamically each pay cycle", "Visible on employee payslips"] },
+      { id: 15, num: "11", title: "Off-Cycle Pay", category: "Payroll Ops", flagged: false,
+        body: "Reference: KB-323696. Calculated daily.",
+        rule: "Only a Manager or HRBP can initiate — never the employee or a standard agent alone.",
+        facts: ["Pay failures: no-pay, missed onboarding, late STIP/bonus", "Legal deadlines: CA/BC/AB termination law", "Corrections: reversals, stop-payment, overpayment recovery", "Edge cases: disability delays, US Leaves Admin, timesheet delays"] },
+      { id: 16, num: "12", title: "Garnishments", category: "Legal", flagged: false,
+        body: "Reference: KB-322751.",
+        rule: "Deductions start/stop only when BMO's legal department receives a formal court order — never on employee request.",
+        facts: ["Canada: Family Support, Credit Union Wage Assignments", "US: Child Support, IRS/State levies, creditor attachments, bankruptcy, admin garnishment"] },
+      { id: 17, num: "15", title: "Call-In / Emergency Pay", category: "Payroll Ops", flagged: false, priority: true,
+        body: "Applies when called in for an emergency outside scheduled hours.",
+        rule: "Eligible overtime hours paid at 1.5x, with a guaranteed 3-hour minimum even if the shift is shorter.",
+        facts: ["Example: 2 hrs worked at $30/hr → paid for 3 hrs @ 1.5x = $135, not $90"] },
+      { id: 18, num: "16", title: "Record of Employment (ROE)", category: "Canadian Tax", flagged: false,
+        body: "Generated only for BMO Canada employees on an earnings interruption.",
+        rule: "Requires 7 consecutive days of interruption while on leave. Issued the pay period after the last pay, sent electronically to Service Canada.",
+        facts: ["Nav: BMO HR Home > Benefits > Time Away From Work > ROE for Leave of Absence", "Alt: Workday > Search 'ROE' > ROE Result > Enter EIN", "Reference: AR-323273"] },
+      { id: 19, num: "17", title: "Garnishment Submission Process", category: "Legal", flagged: true,
+        flagNote: "KB-324082 (submission process) vs KB-322751 (policy) — recorded as separate articles on separate dates. Not confirmed whether this is intentional or a duplicate.",
+        body: "Reference: KB-324082. Covers the mechanical process of submitting a garnishment once a valid court order is received." },
+      { id: 20, num: "18", title: "Overpayment", category: "Payroll Ops", flagged: false,
+        body: "Reference: KB-320111. Nav: Care Portal > Overpayment > Open/Search Account > View All Details.",
+        facts: ["Original Gross/Net = amount employee actually received", "New Gross/Net = amount employee should have received", "Recovery method varies by payment type, employee status, and timing"] },
+      { id: 21, num: "19", title: "STIP — Short-Term Incentive Plan", category: "Compensation", flagged: false,
+        body: "Nav: HR website > Compensation > Variable Pay > Short-Term Incentive Program. Reference: AR-320190.",
+        facts: ["Full-time or part-time only — not temporary/fixed-term", "At least 3 months worked as of performance year end (Nov-Oct, ends Oct 31)", "Must be actively employed on the date the award is paid"] },
+      { id: 22, num: "20", title: "Pay Period Cycle & Key Dates", category: "Payroll Ops", flagged: false,
+        body: "Biweekly cycle. Pattern repeats every period; dates below are relative, not fixed.",
+        facts: ["Period Begin: Sunday of week 1", "Cut-off: Sunday before pay date", "Pay Slip Generation: Wednesday before pay date", "Pay Date: Friday of week 2", "Exception Hours Cut-off: Monday after pay date", "Exception Hours Pay Date: the following pay date"] },
+      { id: 23, num: "21", title: "Overtime Eligibility — Additional Hours", category: "Payroll Ops", flagged: true, priority: true,
+        flagNote: "Source spreadsheet had a second row (1.5/1.5/1.5/0/1.5) that only matched this formula on 2 of 5 days — looked like a drag-fill error, excluded from this formula.",
+        body: "Daily overtime threshold is 7.5 hours.",
+        rule: "Additional Hours = Login Hours − 7.5, floored at 0.",
+        facts: ["9 hrs → 1.5 additional", "8 hrs → 0.5 additional", "10 hrs → 2.5 additional", "6 hrs → 0 (below threshold)"] },
+      { id: 24, num: "22", title: "TOIL and Float", category: "Payroll Ops", flagged: true,
+        flagNote: "FLOAT has a confirmed reference (KB-322175). TOIL's reference number was not visible in source material — don't assume it shares FLOAT's KB number.",
+        body: "TOIL banks overtime hours instead of paying them out immediately — Canada & New Brunswick only, not US. FLOAT (KB-322175) covers a statutory holiday landing on a non-scheduled day.",
+        rule: "TOIL banked at 1.5x (matches overtime rate); unused hours paid out at termination. FLOAT banked at 1.0x (straight time) — the key distinction between the two.",
+        facts: ["TOIL Owed / TOIL Used", "Float Owed / Float Used", "TOIL Workday steps: Time worklet > click day > enter hours to bank > OK > Submit > review > Submit again > manager approval > Done"] },
+      { id: 25, num: "23", title: "Vacation Entitlement Calculation", category: "Compensation", flagged: false,
+        body: "✓ Resolved: V.E. = (Base Allowance Hours × Months Worked ÷ 12) × FTE%. Manager-approved, based on Length of Service + Job Grade.",
+        facts: ["Base case: 150hr base, April hire (9mo) = 112.5 hrs", "FTE change 100%→50% (May 1): 50 + 50 = 100 hrs total", "Grade change 2→4 (May 1): 37.5 + 100 = 137.5 hrs (~138)", "LOS milestone: higher rate applies retroactively from Jan 1 of that year", "Unpaid LOA (Apr 10–Oct 30, 7mo): 12.5 × 7 = 87.5 hrs"] },
+      { id: 26, num: "24", title: "Payroll Components Worked Example", category: "Payroll Ops", flagged: false,
+        body: "✓ Resolved: confirmed with exact dollar totals at $25/hr. Shift premium 15% is confirmed policy, not inferred.",
+        facts: ["Regular Salary: 22.5 × $25 = $562.50", "Holiday: 7.5 × $25 = $187.50", "Holiday Worked: 7.5 × $25 × 1.5 = $281.25", "Shift Premium: 7.5 × $28.75 = $215.63", "Float Used: 7.5 × $25 = $187.50", "Overtime: 0.5 × $25 × 1.5 = $18.75"] },
+      { id: 27, num: "25", title: "Prorating Mid-Year Changes", category: "Payroll Ops", flagged: false,
+        body: "General method: split the year at the effective date, calculate each period with its applicable rate, sum the segments. Worked examples now confirmed in §23.",
+        rule: "See Vacation Entitlement Calculation (§23) for exact figures." },
+      { id: 29, num: "26", title: "Hourly Rate Model & Overtime Codes", category: "Compensation",
+        body: "Bi-Weekly Pay = Annualized Salary ÷ 26.089286. Hourly Rate = Bi-Weekly Pay ÷ Standard Hours (75 Canada / 80 US).",
+        facts: ["Example: $50,000 Canada → $1,916.44 bi-weekly → $25.55/hr", "Exempt = 'Yes' = ineligible for overtime", "Non-Exempt = 'No' = overtime-eligible"] },
+      { id: 30, num: "27", title: "On-Call Standby Pay", category: "Payroll Ops",
+        body: "KB-320848 / KB-320454. Canada-only. Distinct from Call-In Pay (§15) — compensates availability, not just being called in.",
+        facts: ["Mon–Fri: $1.50/hr", "Sat & Sun: $2.00/hr", "Statutory Holidays: $2.50/hr", "Call-in rate depends on OT status: eligible = 1.5x with 3hr min; not eligible = straight time"] },
+      { id: 31, num: "28", title: "Shift Premiums & Weekend Shift", category: "Payroll Ops",
+        body: "KB-320266 (shift) / KB-323886 (weekend).",
+        rule: "Night shift: +15% premium, paid 2 weeks in arrears (Canada). Weekend shift: must include BOTH Saturday AND Sunday of the same weekend to qualify.",
+        facts: ["Holiday Float edge case: stat holiday on Saturday, observed Monday → code 'Holiday Float', usable starting that Monday"] },
+      { id: 32, num: "29", title: "Final Pay Processing", category: "Payroll Ops", flagged: true,
+        flagNote: "State compliance table only has 2 of 50 states (Alabama, Alaska) — do not assume any other state defaults to 'standard cycle.'",
+        body: "KB-322450 (parameters) + KB-323703 (garnishment withholding on final pay — this resolves the earlier 'unverified' flag on KB-323703).",
+        facts: ["Includes: wages to last day, OT, vacation balances, statutory minimums", "State/provincial immediate-pay mandates override standard cycle", "Garnishment withholding nav: Workday Product > Action > Payroll > Withholding Orders"] },
+      { id: 33, num: "30", title: "Garnishment Operations & Timelines", category: "Legal",
+        body: "Extends §12 with processing detail.",
+        facts: ["Faxed/electronic indexing: up to 48 hrs", "Mailed indexing: up to 1 week", "GSS processing deadline: 5 business days, else escalate", "SGT Tool confirms order receipt timestamp", "No fax capability — use online upload tool or HRSharedServices@bmo.com"] },
+      { id: 34, num: "32", title: "Maternity & Parental Leave (Canada)", category: "Leaves - Canada",
+        body: "Combined max 78 weeks. Mother alone up to 78 weeks; father alone capped at 63 weeks. Can be split between parents, but top-up only covers the first 12 weeks regardless of split.",
+        rule: "Top-Up = Regular Salary − EI Payment. Example: $2,000 salary, EI pays $1,500, BMO tops up $500.",
+        facts: ["Mother can start 13 weeks before estimated delivery", "Up to 17 weeks after birth", "Vacation accrues during first 12 weeks", "Father's top-up requires EI eligibility + regular employee status", "ROE sent to Service Canada 5-7 days after first pay interruption", "Nav: Workday > Absence > Request Absence > Select Date Range > Choose Leave Type", "Extension beyond 78/63 weeks: apply for Extended Unpaid LOA, max +4 weeks"] },
+      { id: 35, num: "32", title: "Compassionate Care & Critical Illness Leave", category: "Leaves - Canada",
+        body: "Unpaid leave for employees caring for a critically ill family member.",
+        facts: ["Total duration: 28 weeks", "Maximum payable via EI: 26 weeks", "Nav: BMO HR > Benefits > Time Away From Work > Compassionate Care and Critical Illness Leave", "Workday entry: Absence > Date Range > Compassionate > Submit"] },
+      { id: 36, num: "32", title: "Short-Term & Long-Term Disability (Canada)", category: "Leaves - Canada",
+        body: "STD nav: BMO HR Portal > Benefits > Disability > Short Term Disability. Handled by Sun Life (source notes spell this inconsistently as 'Alight'/'Sunlight' — Sun Life is BMO's actual group disability insurer).",
+        rule: "STD: waiting period, eligible ~day 6. Weeks 1-8 paid at 100%, weeks 9-26 at 75%. Total duration 26 weeks. After that, moves to LTD.",
+        facts: ["LTD is unpaid through BMO — monthly allowance replacement from insurer instead", "LTD ends at 65; payroll deductions stop at 64.5", "No ESOP contributions allowed while on LTD"] },
+      { id: 37, num: "32", title: "Unpaid LOA, Education & Military Leave (Canada)", category: "Leaves - Canada",
+        body: "General Unpaid LOA: up to 104 weeks, at manager discretion.",
+        facts: ["Education Leave: requires 5 years of service, time code 'Can Education'", "Military Leave (training): 8 weeks", "Military Leave (full deployment): up to 56 weeks", "Immediate-family deployment: 30 days, requires Canadian Armed Forces earnings statement for top-up"] },
+      { id: 38, num: "33", title: "Maternity, Parental & STD (USA)", category: "Leaves - USA",
+        body: "Maternity/Parental: up to 16 weeks paid at 100% of Base Salary or BBR (for commissioned employees).",
+        rule: "STD (KB-323446): 10-day unpaid waiting period, STD begins day 11. Total duration 160 days. Employee may use banked Sick or Vacation time during the waiting period.",
+        flagged: true, flagNote: "The specific payout percentage tiers for USA STD (a fragment reading '720 - 100%') don't resolve into a coherent structure like Canada's clean 100%/75% tiers. Verify against KB-323446 directly before quoting a specific percentage." },
+      { id: 39, num: "33", title: "Long-Term Disability (USA)", category: "Leaves - USA",
+        body: "Eligibility begins after 110 consecutive business days of a non-work-related disability.",
+        rule: "LTD replaces 60% of pre-disability total compensation (Benefits Base Rate). Governed alongside the ADA (Americans with Disabilities Act)." },
+      { id: 40, num: "34", title: "Sick Time — Canada", category: "Sick Time",
+        body: "Policy intent: ensure employees have time to recover from illness, injury, or a medical procedure.",
+        rule: "Minimum 10 days per year, no stated maximum. If an illness/injury absence runs longer than 5 business days, employee must apply for STD instead.",
+        facts: ["Covers medical appointments during work hours and employee quarantine", "Nav: BMO Homepage > Absence > Request Absence"] },
+      { id: 41, num: "34", title: "Sick Time — USA", category: "Sick Time",
+        body: "Operates as an annual hour grant with carryover and a hard balance ceiling. Reference: Policy 050-0907.",
+        rule: "80 hrs annual grant + 200 hrs max carryover = 280 hrs absolute balance cap (any point, any year). These three numbers are internally consistent.",
+        facts: ["Unused time is NOT paid out at termination/retirement", "Carries forward automatically every year, subject to the 280hr cap", "Can be used for immediate family or friends, not just self"] },
+      { id: 42, num: "34", title: "USA Sick Time — New Hire Proration", category: "Sick Time",
+        body: "A new hire's first partial year is prorated by hire month, since they can't earn the full 80 hours in a partial year.",
+        facts: ["Hired Jan-June: 80 hours (full amount)", "Hired Jul-Sep: 40 hours", "Hired Oct-Dec: 24 hours"] },
+      { id: 43, num: "35", title: "Leave Codes & Navigation Reference", category: "Leaves - Canada",
+        body: "Quick reference for Workday time codes and navigation paths across leave types.",
+        facts: ["Compassionate Care: Workday > Absence > Date Range > Compassionate > Submit", "Education Leave: time code 'Can Education'", "Military Leave: time code 'Can Military'", "STD (Canada): Absence Connect portal via Sun Life", "Bereavement: BMO Homepage > Absence > Request Absence > Other Absence", "People Care Day: 1 per employee per calendar year"] },
+      { id: 44, num: "35", title: "Other Confirmed Leave Types", category: "Leaves - Canada",
+        body: "Additional leave types confirmed from source material.",
+        facts: ["Bereavement: 10 days total — 5 paid, 5 unpaid", "Stillbirth Leave: 8 weeks, unpaid", "Children's Education Leave: up to 8 hours/year", "Voting Leave (Canada): paid"],
+        flagged: true, flagNote: "Blood Donation Leave and a 'Feb payout' reference appear in source photos but are cut off mid-sentence — left as a placeholder, not guessed at. Also: Victim of Crime leave (104 weeks unpaid) exists, but its eligibility clauses (child age, secondary conditions) don't form a coherent rule as transcribed — treat as unconfirmed." },
+    ];
+
+    const KB_INDEX = [
+      ["KB-321014", "Before-tax deductions"], ["KB-322333", "CPP / QPP"], ["KB-319901", "OASDI (US)"],
+      ["KB-324272", "Employment Insurance (Canada)"], ["KB-323035", "Year-end tax slips"], ["KB-323595", "Imputed income"],
+      ["KB-323696", "Off-cycle pay"], ["KB-322751", "Garnishments (policy)"], ["KB-322450", "Final Pay Parameters"],
+      ["KB-323703", "Final Pay Garnishment Withholding Orders (confirmed)"],
+      ["KB-323472", "Canada tax slip steps (still unverified vs KB-324272)"], ["KB-324082", "Garnishment submission (possibly superseded by KB-323703)"],
+      ["KB-320111", "Overpayment"], ["AR-323273", "Record of Employment (ROE)"], ["AR-320190", "STIP hours detail"], ["KB-322175", "Float (statutory holiday banking)"],
+      ["KB-320266", "Shift Premiums"], ["KB-323886", "Weekend Shift"], ["KB-320848", "Emergency Call-In / On-Call Standby"], ["KB-320454", "On-Call Standby (secondary)"],
+      ["KB-323446", "Short-Term Disability (USA)"], ["Policy 050-0907", "Sick Time (USA)"],
+    ];
+
+    const QUIZ = [
+      { q: "An employee is called in and works 2 hours at $30/hr, eligible for 1.5x overtime. What are they paid?", opts: ["$60", "$90", "$135", "$45"], correct: 2 },
+      { q: "What is the daily overtime threshold, and how are additional hours calculated?", opts: ["7.5 hrs; Login−7.5 floored at 0", "8 hrs; Login−8, can be negative", "6 hrs; Login−6", "7.5 hrs; Login×1.5"], correct: 0 },
+      { q: "An employee logs 6 hours in a day. What are their Additional Hours?", opts: ["0", "0.5", "1.5", "-1.5"], correct: 0 },
+      { q: "An employee logs 10 hours in a day. What are their Additional Hours?", opts: ["1.5", "2.0", "2.5", "10"], correct: 2 },
+      { q: "A retiree calls about their T4A. What should the front-line agent do?", opts: ["Calculate the tax bracket", "Transfer to Pension Department", "Direct to Alight Payroll", "Email Data Services"], correct: 1 },
+      { q: "When can a garnishment deduction start or stop?", opts: ["On employee request", "On manager approval", "Only with a formal court order", "At fiscal year start"], correct: 2 },
+      { q: "Who can initiate an off-cycle pay run?", opts: ["The employee directly", "Any HRC agent", "Only a Manager or HRBP", "Only Payroll Ops"], correct: 2 },
+      { q: "How many bank accounts can a Canadian employee split direct deposit across?", opts: ["1", "2", "3", "Unlimited"], correct: 0 },
+      { q: "At what age does CPP stop automatically, no form required?", opts: ["65", "69", "70", "73"], correct: 2 },
+      { q: "What is the 2026 EI Maximum Insurable Earnings cap?", opts: ["$58,700", "$68,900", "$78,900", "$184,500"], correct: 1 },
+      { q: "TOIL is banked at what rate, and who can use it?", opts: ["1.0x, Canada & US", "1.5x, Canada & NB only, not US", "2.0x, all regions", "1.5x, US only"], correct: 1 },
+      { q: "FLOAT is banked at what rate?", opts: ["1.0x — straight time", "1.5x — overtime rate", "2.0x — double time", "0.5x — half rate"], correct: 0 },
+      { q: "Vacation Entitlement formula is:", opts: ["Base Hours × FTE% only", "(Base Hours ÷ 12 × Months Worked) × FTE%", "Base Hours × Months Worked", "Annual Salary ÷ 12"], correct: 1 },
+      { q: "An employee crosses a length-of-service milestone (e.g. 10 to 20 years) mid-year. When does the higher accrual rate apply?", opts: ["From the anniversary date forward only", "Retroactively from the beginning of that calendar year", "Starting the following calendar year", "It doesn't change automatically"], correct: 1 },
+      { q: "What is the Bi-Weekly Pay divisor used to derive salary rates?", opts: ["24", "26", "26.089286", "52"], correct: 2 },
+      { q: "Standard bi-weekly hours: Canada vs. US?", opts: ["75 vs 80", "70 vs 75", "80 vs 75", "75 vs 75"], correct: 0 },
+      { q: "On-Call Standby pay (Canada) on a weekend is:", opts: ["$1.50/hr", "$2.00/hr", "$2.50/hr", "$3.00/hr"], correct: 1 },
+      { q: "To qualify for the weekend shift premium, scheduled hours must include:", opts: ["Either Saturday or Sunday", "Both Saturday AND Sunday of the same weekend", "Any 2 consecutive days", "Friday and Saturday"], correct: 1 },
+      { q: "Night shift premium adds what percentage to the base rate?", opts: ["10%", "15%", "20%", "25%"], correct: 1 },
+      { q: "What triggers Final Pay to override the standard payment cycle?", opts: ["Employee request", "Manager discretion", "A state/province immediate-pay compliance mandate", "Union contract only"], correct: 2 },
+      { q: "How long can faxed/electronic garnishment documents take to index?", opts: ["Up to 24 hours", "Up to 48 hours", "Up to 72 hours", "Up to 1 week"], correct: 1 },
+      { q: "Once GSS validates a garnishment order via the SGT Tool, how many business days until it must be processed?", opts: ["2", "3", "5", "10"], correct: 2 },
+      { q: "An ROE can only be generated after how many consecutive days of interrupted earnings?", opts: ["3 days", "5 days", "7 days", "14 days"], correct: 2 },
+      { q: "In Overpayment terminology, 'Original Gross/Net' refers to:", opts: ["What the employee should have received", "What the employee actually received", "The employer's total liability", "The recovery deduction amount"], correct: 1 },
+      { q: "An employee's ABBR is the GREATER of base pay + 2-year commission average, OR:", opts: ["The salary range maximum", "The salary range midpoint", "The salary range minimum", "Last year's ABBR"], correct: 1 },
+      { q: "Payment election changes must be made from where?", opts: ["Any personal device", "Inside the BMO Network only", "A BMO branch in person only", "By phone to HRC"], correct: 1 },
+      { q: "How many bank accounts can a US employee split direct deposit across?", opts: ["1", "2", "3", "Unlimited"], correct: 2 },
+      { q: "Which of these is a POST-tax deduction, not a pre-tax one?", opts: ["RSP contributions (Canada)", "401(k) contributions (US)", "Life insurance premiums (Canada)", "ESOP contributions (Canada)"], correct: 2 },
+      { q: "T2200 is used for which purpose?", opts: ["US W-2 corrections", "Canadian work-from-home expense claims", "Garnishment submissions", "STIP eligibility verification"], correct: 1 },
+      { q: "Imputed income (e.g. a gift card award) is taxed:", opts: ["Only at year-end", "Each pay period, as it's recorded", "Never — it's tax-exempt", "Only if over $500"], correct: 1 },
+      { q: "Who is EXCLUDED from Off-Cycle Pay eligibility structure — i.e., cannot personally request it?", opts: ["Managers", "HRBPs", "Standard employees acting alone", "US Leaves Administration"], correct: 2 },
+      { q: "BMO Canada's business units include which of the following?", opts: ["BMO Harris", "Bank of the West", "Air Miles", "Nesbitt Burns Trust"], correct: 2 },
+      { q: "A Contractual employee's profile is marked with which suffix?", opts: ["(T) for Temporary", "(C)", "(X)", "No marking is used"], correct: 1 },
+      { q: "In the Weekly Timesheet model, hours between Schedule Hours and the OT Threshold are called:", opts: ["Overtime", "Additional", "Premium", "Standby"], correct: 1 },
+      { q: "What pay rate applies to true Overtime (hours above the OT Threshold)?", opts: ["1.0x — straight time", "1.15x", "1.5x", "2.0x"], correct: 2 },
+      { q: "The Pay Calendar tool's cut-off day toggle exists because:", opts: ["The manual was simply wrong and Monday is now confirmed correct", "The documented source (Sunday) conflicts with a reported real-world experience (Monday), and neither has been confirmed as definitively correct", "Canada uses Sunday and the US uses Monday", "It's a seasonal difference"], correct: 1 },
+      { q: "The Medicare tax section contains an internal inconsistency about what?", opts: ["The 1.45% employee rate itself", "Whether there's a wage cap — one part of the source says no cap, another references a $200,000 threshold", "Whether employers match the deduction", "The FICA acronym definition"], correct: 1 },
+      { q: "In the confirmed payroll worked example, what is Holiday Worked pay calculated as?", opts: ["Hours × rate (straight time)", "Hours × rate × 1.5", "Hours × rate × 2.0", "A flat daily amount"], correct: 1 },
+      { q: "What does FTE stand for, and how is Hourly Rate derived from it?", opts: ["Full-Time Employee; Hourly Rate = Annual Salary ÷ 2000", "Full-Time Equivalent; Hourly Rate = Bi-Weekly Pay ÷ Standard Hours", "Fixed-Term Employee; not used in rate calculations", "Full Tax Exemption; unrelated to pay rate"], correct: 1 },
+      { q: "Which garnishment category is Canada-specific (not found in the US list)?", opts: ["IRS Tax Levies", "Wage Assignments (Credit Unions)", "Bankruptcy Orders", "Administrative Wage Garnishment"], correct: 1 },
+      { q: "What is the combined Canada Maternity/Parental leave maximum, and the father-alone cap?", opts: ["78 weeks combined; father capped at 63", "52 weeks combined; father capped at 26", "78 weeks combined; no father cap", "104 weeks combined; father capped at 52"], correct: 0 },
+      { q: "BMO's Mat/Pat top-up covers how many weeks?", opts: ["All weeks of leave", "First 12 weeks only", "First 26 weeks", "Only if EI is denied"], correct: 1 },
+      { q: "An employee's salary is $2,000 and EI pays $1,500. What does BMO's top-up formula give them?", opts: ["$1,500 total", "$2,000 total ($500 top-up)", "$3,500 total", "$500 total"], correct: 1 },
+      { q: "How long after the first pay interruption is the ROE sent to Service Canada?", opts: ["Same day", "5-7 days", "14 days", "30 days"], correct: 1 },
+      { q: "Compassionate Care Leave: total duration vs. maximum payable via EI?", opts: ["28 weeks total, 26 weeks payable", "26 weeks total, 28 weeks payable", "52 weeks total, 26 weeks payable", "12 weeks total, 12 weeks payable"], correct: 0 },
+      { q: "Canada STD pay structure across its 26-week duration:", opts: ["100% for all 26 weeks", "Weeks 1-8 at 100%, weeks 9-26 at 75%", "75% for all 26 weeks, no tiers", "50% flat rate throughout"], correct: 1 },
+      { q: "In Canada, LTD deductions stop at what age, though LTD itself ends at 65?", opts: ["60", "62", "64.5", "65"], correct: 2 },
+      { q: "Can an employee contribute to ESOP while on LTD (Canada)?", opts: ["Yes, at a reduced rate", "No", "Only in the first 6 months", "Only with manager approval"], correct: 1 },
+      { q: "General Unpaid LOA (Canada) caps at how many weeks?", opts: ["26 weeks", "52 weeks", "104 weeks", "No cap"], correct: 2 },
+      { q: "Education Leave (Canada) requires how many years of service?", opts: ["1 year", "3 years", "5 years", "10 years"], correct: 2 },
+      { q: "USA Maternity/Parental leave: how many weeks, at what pay rate?", opts: ["12 weeks at 60%", "16 weeks at 100% of Base Salary/BBR", "26 weeks at 75%", "8 weeks at 100%"], correct: 1 },
+      { q: "USA STD: how many unpaid waiting days before STD begins?", opts: ["3 days", "5 days", "10 days", "14 days"], correct: 2 },
+      { q: "USA LTD eligibility begins after how many consecutive business days, and replaces what percentage of pay?", opts: ["90 days, 50%", "110 days, 60%", "120 days, 75%", "60 days, 40%"], correct: 1 },
+      { q: "Canada Sick Time: what's the trigger to apply for STD instead of continuing on sick leave?", opts: ["Any absence over 1 day", "Absence over 5 business days", "Absence over 10 business days", "There is no trigger — sick leave has no limit"], correct: 1 },
+      { q: "USA Sick Time: what three numbers are internally consistent (grant + carryover = cap)?", opts: ["40 + 100 = 140", "80 + 200 = 280", "60 + 150 = 210", "100 + 300 = 400"], correct: 1 },
+      { q: "A USA employee hired in August — how many sick hours in their first partial year?", opts: ["80 hours", "40 hours", "24 hours", "0 hours"], correct: 1 },
+      { q: "Bereavement leave (Canada): total days, and paid/unpaid split?", opts: ["5 days, all paid", "10 days — 5 paid, 5 unpaid", "10 days, all unpaid", "15 days — 10 paid, 5 unpaid"], correct: 1 },
+    ];
+
+    const CATEGORIES = ["All", ...Array.from(new Set(TOPICS.map(t => t.category)))];
+
+    const CAT_COLORS = {
+      "General": "#5b7a99", "Benefits": "#6a8f5f", "Compensation": "#8A6D3B", "Onboarding": "#7a6a9e",
+      "Deductions": "#a05a5a", "Canadian Tax": "#3f7d8c", "US Tax": "#8c5a3f", "Tax Reporting": "#5a6b8c",
+      "Payroll Ops": "#1f2a44", "Legal": "#7d3f5c",
+    };
+    function catColor(cat) { return CAT_COLORS[cat] || "#666"; }
+
+    function App() {
+      const [view, setView] = useState("browse");
+      const [search, setSearch] = useState("");
+      const [category, setCategory] = useState("All");
+      const [openId, setOpenId] = useState(null);
+      const [quizIdx, setQuizIdx] = useState(0);
+      const [quizAnswered, setQuizAnswered] = useState(false);
+      const [quizSelected, setQuizSelected] = useState(null);
+      const [quizScore, setQuizScore] = useState(0);
+      const [quizDone, setQuizDone] = useState(false);
+
+      const filtered = useMemo(() => {
+        return TOPICS.filter(t => {
+          const matchCat = category === "All" || t.category === category;
+          const s = search.toLowerCase();
+          const matchSearch = !s || t.title.toLowerCase().includes(s) || t.body.toLowerCase().includes(s) ||
+            (t.facts || []).some(f => f.toLowerCase().includes(s)) || (t.rule || "").toLowerCase().includes(s);
+          return matchCat && matchSearch;
+        });
+      }, [search, category]);
+
+      const flaggedCount = TOPICS.filter(t => t.flagged).length;
+      const priorityCount = TOPICS.filter(t => t.priority).length;
+
+      function answerQuiz(idx) {
+        if (quizAnswered) return;
+        setQuizSelected(idx);
+        setQuizAnswered(true);
+        if (idx === QUIZ[quizIdx].correct) setQuizScore(s => s + 1);
+      }
+      function nextQuiz() {
+        setQuizSelected(null);
+        setQuizAnswered(false);
+        if (quizIdx + 1 < QUIZ.length) setQuizIdx(i => i + 1);
+        else setQuizDone(true);
+      }
+      function restartQuiz() {
+        setQuizIdx(0); setQuizAnswered(false); setQuizSelected(null); setQuizScore(0); setQuizDone(false);
+      }
+
+      const NOTES_KEY = "bmo_hrfs_notes_v1";
+      const [notes, setNotes] = useState(() => {
+        try {
+          const raw = localStorage.getItem(NOTES_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch (e) { return {}; }
+      });
+      const [draftText, setDraftText] = useState({});
+      const [draftImages, setDraftImages] = useState({});
+      const [listeningTopic, setListeningTopic] = useState(null);
+      const [voiceSupported] = useState(() => typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition));
+      const recognitionRef = useRef(null);
+
+      function toggleVoiceInput(topicId) {
+        if (!voiceSupported) {
+          alert("Voice input isn't supported in this browser. It works in Chrome and Edge — try one of those, or just type your note.");
+          return;
+        }
+        if (listeningTopic === topicId) {
+          recognitionRef.current && recognitionRef.current.stop();
+          setListeningTopic(null);
+          return;
+        }
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const rec = new SR();
+        rec.continuous = true;
+        rec.interimResults = false;
+        rec.lang = "en-US";
+        rec.onresult = (e) => {
+          let transcript = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            transcript += e.results[i][0].transcript;
+          }
+          setDraftText(prev => ({ ...prev, [topicId]: ((prev[topicId] || "") + " " + transcript).trim() }));
+        };
+        rec.onerror = () => setListeningTopic(null);
+        rec.onend = () => setListeningTopic(null);
+        recognitionRef.current = rec;
+        rec.start();
+        setListeningTopic(topicId);
+      }
+      const [importMsg, setImportMsg] = useState("");
+
+      function persistNotes(next) {
+        setNotes(next);
+        try { localStorage.setItem(NOTES_KEY, JSON.stringify(next)); }
+        catch (e) { alert("Could not save — your browser's local storage may be full. Try removing an old image-heavy note, or use Export to back up first."); }
+      }
+
+      function compressImage(file, maxWidth = 900, quality = 0.72) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const scale = Math.min(1, maxWidth / img.width);
+              const canvas = document.createElement("canvas");
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL("image/jpeg", quality));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function handleImagePick(topicId, fileList) {
+        const files = Array.from(fileList || []);
+        const compressed = await Promise.all(files.map(f => compressImage(f)));
+        setDraftImages(prev => ({ ...prev, [topicId]: [...(prev[topicId] || []), ...compressed] }));
+      }
+
+      function removeDraftImage(topicId, idx) {
+        setDraftImages(prev => ({ ...prev, [topicId]: (prev[topicId] || []).filter((_, i) => i !== idx) }));
+      }
+
+      function saveNote(topicId) {
+        const text = (draftText[topicId] || "").trim();
+        const images = draftImages[topicId] || [];
+        if (!text && images.length === 0) return;
+        const entry = { id: Date.now(), text, images, createdAt: new Date().toISOString() };
+        const next = { ...notes, [topicId]: [...(notes[topicId] || []), entry] };
+        persistNotes(next);
+        setDraftText(prev => ({ ...prev, [topicId]: "" }));
+        setDraftImages(prev => ({ ...prev, [topicId]: [] }));
+      }
+
+      function deleteNote(topicId, noteId) {
+        const next = { ...notes, [topicId]: (notes[topicId] || []).filter(n => n.id !== noteId) };
+        persistNotes(next);
+      }
+
+      function exportNotes() {
+        const blob = new Blob([JSON.stringify(notes, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `bmo-hrfs-notes-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function importNotes(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const imported = JSON.parse(e.target.result);
+            const merged = { ...notes };
+            Object.keys(imported).forEach(topicId => {
+              merged[topicId] = [...(merged[topicId] || []), ...imported[topicId]];
+            });
+            persistNotes(merged);
+            setImportMsg(`Imported notes for ${Object.keys(imported).length} topic(s).`);
+            setTimeout(() => setImportMsg(""), 4000);
+          } catch (err) {
+            setImportMsg("Import failed — that file doesn't look like a valid notes backup.");
+            setTimeout(() => setImportMsg(""), 4000);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      const totalNoteCount = Object.values(notes).reduce((sum, arr) => sum + arr.length, 0);
+
+      const serif = "'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif";
+      const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+      return (
+        <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f7f5f0 0%, #f1ede3 100%)", fontFamily: sans, color: "#1c1c1c" }}>
+          <style>{`
+            @media print {
+              .no-print { display: none !important; }
+              .print-only { display: block !important; }
+              body { background: #fff !important; }
+            }
+            .print-only { display: none; }
+          `}</style>
+
+          <header className="no-print" style={{ background: "linear-gradient(135deg, #17213a 0%, #1f2a44 60%, #253355 100%)", color: "#fff", padding: "0", boxShadow: "0 2px 12px rgba(0,0,0,0.18)", position: "sticky", top: 0, zIndex: 20 }}>
+            <div style={{ maxWidth: 1080, margin: "0 auto", padding: "22px 28px 18px 28px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, #c9a86a, #8A6D3B)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontWeight: "bold", fontSize: 17, color: "#17213a", flexShrink: 0 }}>B</div>
+                    <div>
+                      <div style={{ fontSize: 23, fontWeight: 700, fontFamily: serif, letterSpacing: "0.2px" }}>HRFS Study Reference</div>
+                      <div style={{ fontSize: 12.5, color: "#c9a86a", letterSpacing: "0.4px", marginTop: 1 }}>CROSS-BORDER PAYROLL, BENEFITS &amp; COMPLIANCE</div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <button onClick={() => window.print()} style={{ padding: "8px 16px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                    📄 Download Full Session (PDF)
+                  </button>
+                  <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.07)", padding: 5, borderRadius: 11 }}>
+                    {[["browse", "Browse"], ["kb", "KB Index"], ["calc", "Calculators"], ["quiz", "Quiz"], ["notes", "My Notes"]].map(([key, label]) => (
+                      <button key={key} onClick={() => setView(key)} style={{
+                        padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13.5,
+                        fontWeight: view === key ? 700 : 500, letterSpacing: "0.2px",
+                        background: view === key ? "#c9a86a" : "transparent",
+                        color: view === key ? "#17213a" : "rgba(255,255,255,0.75)",
+                        transition: "all 0.15s ease"
+                      }}>{label}{key === "notes" && totalNoteCount > 0 ? ` (${totalNoteCount})` : ""}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 20, marginTop: 16, fontSize: 12.5, color: "rgba(255,255,255,0.55)" }}>
+                <span>{TOPICS.length} topics</span>
+                <span>·</span>
+                <span>{KB_INDEX.length} KB references</span>
+                <span>·</span>
+                <span style={{ color: flaggedCount ? "#e0a3a3" : "inherit" }}>{flaggedCount} flagged</span>
+                <span>·</span>
+                <span style={{ color: "#c9a86a" }}>★ {priorityCount} priority</span>
+                <span>·</span>
+                <span>{totalNoteCount} note{totalNoteCount === 1 ? "" : "s"} saved</span>
+              </div>
+            </div>
+          </header>
+
+          <div className="no-print" style={{ background: "#fdf6e3", borderBottom: "1px solid #e8dcb0", padding: "8px 28px", fontSize: 12, color: "#7a5f1f", textAlign: "center" }}>
+            📌 Notes and images are saved only in <strong>this browser</strong> — they don't sync across devices and aren't visible to anyone else. Use Export in the My Notes tab to back them up.
+          </div>
+
+          <main className="no-print" style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 28px 60px 28px" }}>
+
+            {view === "browse" && (
+              <div>
+                <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
+                  <div style={{ position: "relative", flex: "1 1 260px" }}>
+                    <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#999", fontSize: 15 }}>⌕</span>
+                    <input
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Search topics, rules, KB numbers..."
+                      style={{ width: "100%", padding: "12px 14px 12px 38px", borderRadius: 10, border: "1px solid #ddd6c8", fontSize: 14.5, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", outline: "none" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+                  {CATEGORIES.map(c => (
+                    <button key={c} onClick={() => setCategory(c)} style={{
+                      padding: "6px 14px", borderRadius: 20, fontSize: 12.5, cursor: "pointer", fontWeight: 600,
+                      border: category === c ? "1px solid transparent" : "1px solid #ddd6c8",
+                      background: category === c ? (c === "All" ? "#1f2a44" : catColor(c)) : "#fff",
+                      color: category === c ? "#fff" : "#555",
+                      transition: "all 0.15s ease"
+                    }}>{c}</button>
+                  ))}
+                </div>
+
+                {flaggedCount > 0 && (
+                  <div style={{ background: "#fdf1f1", border: "1px solid #e8c4c4", borderRadius: 10, padding: "12px 16px", marginBottom: 18, fontSize: 13, color: "#9a3f3f", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>⚠</span>
+                    <span>{flaggedCount} topic{flaggedCount > 1 ? "s" : ""} below have unresolved data conflicts, marked with a red border.</span>
+                  </div>
+                )}
+
+                <div style={{ fontSize: 12.5, color: "#8a8577", marginBottom: 14, fontWeight: 600, letterSpacing: "0.3px" }}>{filtered.length} OF {TOPICS.length} TOPICS</div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {filtered.map(t => {
+                    const isOpen = openId === t.id;
+                    return (
+                      <div key={t.id} style={{
+                        background: "#fff", borderRadius: 12,
+                        border: t.flagged ? "1.5px solid #d99b9b" : (t.priority ? "1.5px solid #c9a86a" : "1px solid #e6e1d6"),
+                        overflow: "hidden", boxShadow: isOpen ? "0 4px 16px rgba(0,0,0,0.07)" : "0 1px 3px rgba(0,0,0,0.03)",
+                        transition: "box-shadow 0.2s ease"
+                      }}>
+                        <button onClick={() => setOpenId(isOpen ? null : t.id)} style={{
+                          width: "100%", textAlign: "left", padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
+                          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                            <div style={{
+                              width: 4, height: 34, borderRadius: 3, background: catColor(t.category), flexShrink: 0
+                            }} />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontFamily: serif, fontSize: 11.5, color: "#a89968", fontWeight: 600 }}>§{t.num}</span>
+                                <span style={{ fontWeight: 700, fontSize: 16, color: "#1f2a44", fontFamily: serif }}>{t.priority ? "★ " : ""}{t.title}</span>
+                              </div>
+                              {t.flagged && <span style={{ fontSize: 10.5, color: "#b23a3a", fontWeight: 700, letterSpacing: "0.4px" }}>⚠ FLAGGED FOR REVIEW</span>}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, color: "#fff", background: catColor(t.category), padding: "4px 10px", borderRadius: 20, fontWeight: 600, whiteSpace: "nowrap" }}>{t.category}</span>
+                            <span style={{ fontSize: 13, color: "#bbb", transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s ease", display: "inline-block" }}>›</span>
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div style={{ padding: "0 20px 20px 20px" }}>
+                            <div style={{ height: 1, background: "#f0ece0", marginBottom: 14 }} />
+                            <p style={{ fontSize: 14.5, lineHeight: 1.65, margin: "0 0 12px 0", color: "#333" }}>{t.body}</p>
+                            {t.rule && (
+                              <div style={{ background: "#faf7f0", borderLeft: "3px solid #c9a86a", borderRadius: "0 6px 6px 0", padding: "11px 15px", marginBottom: 12, fontSize: 13.5, lineHeight: 1.6 }}>
+                                <strong style={{ color: "#8A6D3B" }}>Rule — </strong>{t.rule}
+                              </div>
+                            )}
+                            {t.facts && (
+                              <ul style={{ fontSize: 13.5, lineHeight: 1.8, paddingLeft: 20, margin: "0 0 12px 0", color: "#444" }}>
+                                {t.facts.map((f, i) => <li key={i}>{f}</li>)}
+                              </ul>
+                            )}
+                            {t.flagged && (
+                              <div style={{ background: "#fdf1f1", borderLeft: "3px solid #b23a3a", borderRadius: "0 6px 6px 0", padding: "11px 15px", fontSize: 13, color: "#8a2f2f", lineHeight: 1.6 }}>
+                                <strong>⚠ Flagged for review — </strong>{t.flagNote}
+                              </div>
+                            )}
+
+                            <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px dashed #ddd6c8" }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "#8a8577", letterSpacing: "0.3px", marginBottom: 10 }}>
+                                YOUR NOTES {(notes[t.id] || []).length > 0 ? `(${notes[t.id].length})` : ""}
+                              </div>
+
+                              {(notes[t.id] || []).map(n => (
+                                <div key={n.id} style={{ background: "#faf8f3", border: "1px solid #eee7d6", borderRadius: 8, padding: "10px 12px", marginBottom: 8 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                                    <p style={{ fontSize: 13.5, margin: 0, color: "#333", whiteSpace: "pre-wrap", flex: 1 }}>{n.text}</p>
+                                    <button onClick={() => deleteNote(t.id, n.id)} style={{ border: "none", background: "none", color: "#b23a3a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>✕ delete</button>
+                                  </div>
+                                  {n.images && n.images.length > 0 && (
+                                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                                      {n.images.map((src, i) => (
+                                        <img key={i} src={src} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 6, border: "1px solid #ddd" }} />
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div style={{ fontSize: 10.5, color: "#aaa", marginTop: 6 }}>{new Date(n.createdAt).toLocaleString()}</div>
+                                </div>
+                              ))}
+
+                              <textarea
+                                value={draftText[t.id] || ""}
+                                onChange={e => setDraftText(prev => ({ ...prev, [t.id]: e.target.value }))}
+                                placeholder="Add a note for this topic..."
+                                style={{ width: "100%", minHeight: 60, padding: 10, borderRadius: 8, border: "1px solid #ddd6c8", fontSize: 13.5, fontFamily: sans, resize: "vertical", boxSizing: "border-box" }}
+                              />
+
+                              {(draftImages[t.id] || []).length > 0 && (
+                                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                                  {draftImages[t.id].map((src, i) => (
+                                    <div key={i} style={{ position: "relative" }}>
+                                      <img src={src} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6, border: "1px solid #ddd" }} />
+                                      <button onClick={() => removeDraftImage(t.id, i)} style={{ position: "absolute", top: -6, right: -6, background: "#b23a3a", color: "#fff", border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 10, cursor: "pointer", lineHeight: "18px", padding: 0 }}>✕</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+                                <button onClick={() => toggleVoiceInput(t.id)} style={{
+                                  fontSize: 12.5, padding: "8px 14px", borderRadius: 7, cursor: "pointer", border: "none",
+                                  background: listeningTopic === t.id ? "#b23a3a" : "#f0ece0",
+                                  color: listeningTopic === t.id ? "#fff" : "#555"
+                                }}>
+                                  {listeningTopic === t.id ? "⏹ Stop Listening" : "🎤 Voice Note"}
+                                </button>
+                                <label style={{ fontSize: 12.5, padding: "8px 14px", background: "#f0ece0", borderRadius: 7, cursor: "pointer", color: "#555" }}>
+                                  📎 Add Image
+                                  <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => handleImagePick(t.id, e.target.files)} />
+                                </label>
+                                <button onClick={() => saveNote(t.id)} style={{ padding: "8px 18px", background: "#1f2a44", color: "#fff", border: "none", borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                                  Save Note
+                                </button>
+                              </div>
+                              {!voiceSupported && (
+                                <div style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Voice input needs Chrome or Edge — not supported in this browser.</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <div style={{ textAlign: "center", padding: 50, color: "#999", background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6" }}>
+                      No topics match your search.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {view === "kb" && (
+              <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+                <div style={{ background: "#1f2a44", color: "#fff", padding: "14px 22px", display: "flex", fontWeight: 700, fontSize: 12.5, letterSpacing: "0.3px" }}>
+                  <div style={{ width: 180 }}>REFERENCE</div>
+                  <div>TOPIC</div>
+                </div>
+                {KB_INDEX.map(([kb, topic], i) => (
+                  <div key={kb} style={{
+                    display: "flex", padding: "13px 22px", fontSize: 13.5, alignItems: "center",
+                    background: i % 2 === 0 ? "#fff" : "#faf8f3", borderTop: i === 0 ? "none" : "1px solid #f0ece0"
+                  }}>
+                    <div style={{ width: 180, fontFamily: "'SF Mono', Consolas, monospace", color: "#8A6D3B", fontWeight: 600 }}>{kb}</div>
+                    <div style={{ color: "#333" }}>{topic}{topic.toLowerCase().includes("unverified") && <span style={{ color: "#b23a3a", marginLeft: 8 }}>⚠</span>}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {view === "quiz" && (
+              <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e6e1d6", padding: 30, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+                {!quizDone ? (
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                      <div style={{ fontSize: 12.5, color: "#8a8577", fontWeight: 600, letterSpacing: "0.3px" }}>QUESTION {quizIdx + 1} OF {QUIZ.length}</div>
+                      <div style={{ fontSize: 12.5, color: "#8A6D3B", fontWeight: 700 }}>SCORE: {quizScore}</div>
+                    </div>
+                    <div style={{ width: "100%", height: 5, background: "#f0ece0", borderRadius: 3, marginBottom: 24, overflow: "hidden" }}>
+                      <div style={{ width: `${((quizIdx) / QUIZ.length) * 100}%`, height: "100%", background: "linear-gradient(90deg, #c9a86a, #8A6D3B)", borderRadius: 3, transition: "width 0.3s ease" }} />
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 22, color: "#1f2a44", fontFamily: serif, lineHeight: 1.4 }}>{QUIZ[quizIdx].q}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {QUIZ[quizIdx].opts.map((opt, idx) => {
+                        let bg = "#faf8f3", border = "1px solid #e6e1d6", color = "#333";
+                        if (quizAnswered) {
+                          if (idx === QUIZ[quizIdx].correct) { bg = "#eaf5ec"; border = "1.5px solid #4a8a5c"; color = "#2c5c3a"; }
+                          else if (idx === quizSelected) { bg = "#fdf1f1"; border = "1.5px solid #c76868"; color = "#8a2f2f"; }
+                        }
+                        return (
+                          <button key={idx} onClick={() => answerQuiz(idx)} disabled={quizAnswered}
+                            style={{ textAlign: "left", padding: "14px 18px", borderRadius: 10, background: bg, border, color, fontSize: 14.5, cursor: quizAnswered ? "default" : "pointer", transition: "all 0.15s ease", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>{opt}</span>
+                            {quizAnswered && idx === QUIZ[quizIdx].correct && <span>✓</span>}
+                            {quizAnswered && idx === quizSelected && idx !== QUIZ[quizIdx].correct && <span>✕</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {quizAnswered && (
+                      <button onClick={nextQuiz} style={{ marginTop: 22, padding: "12px 24px", background: "#1f2a44", color: "#fff", border: "none", borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                        {quizIdx + 1 === QUIZ.length ? "Finish →" : "Next Question →"}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: 24 }}>
+                    <div style={{ fontSize: 44, marginBottom: 12 }}>{quizScore >= 8 ? "🏅" : quizScore >= 5 ? "👍" : "📖"}</div>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: "#1f2a44", fontFamily: serif }}>{quizScore} / {QUIZ.length}</div>
+                    <div style={{ fontSize: 13.5, color: "#8a8577", margin: "10px 0 24px 0" }}>Progress resets when you leave this page — it's not saved between sessions.</div>
+                    <button onClick={restartQuiz} style={{ padding: "12px 26px", background: "#1f2a44", color: "#fff", border: "none", borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                      Retake Quiz
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {view === "notes" && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#1f2a44", fontFamily: serif }}>My Notes</div>
+                    <div style={{ fontSize: 12.5, color: "#8a8577" }}>{totalNoteCount} note{totalNoteCount === 1 ? "" : "s"} across {Object.keys(notes).filter(k => notes[k].length > 0).length} topic{Object.keys(notes).filter(k => notes[k].length > 0).length === 1 ? "" : "s"}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={exportNotes} disabled={totalNoteCount === 0} style={{ padding: "9px 16px", background: totalNoteCount === 0 ? "#e6e1d6" : "#1f2a44", color: totalNoteCount === 0 ? "#999" : "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: totalNoteCount === 0 ? "default" : "pointer" }}>
+                      ↓ Export Backup
+                    </button>
+                    <label style={{ padding: "9px 16px", background: "#faf8f3", border: "1px solid #ddd6c8", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#555" }}>
+                      ↑ Import Backup
+                      <input type="file" accept="application/json" style={{ display: "none" }} onChange={e => e.target.files[0] && importNotes(e.target.files[0])} />
+                    </label>
+                  </div>
+                </div>
+
+                {importMsg && (
+                  <div style={{ background: "#eaf5ec", border: "1px solid #b8dcc0", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#2c5c3a" }}>{importMsg}</div>
+                )}
+
+                {totalNoteCount === 0 ? (
+                  <div style={{ textAlign: "center", padding: 60, color: "#999", background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6" }}>
+                    No notes yet. Open any topic in Browse and add one — it'll show up here too.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {TOPICS.filter(t => (notes[t.id] || []).length > 0).map(t => (
+                      <div key={t.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6", padding: 18 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontFamily: serif, fontSize: 11.5, color: "#a89968", fontWeight: 600 }}>§{t.num}</span>
+                          <span style={{ fontWeight: 700, fontSize: 15, color: "#1f2a44", fontFamily: serif }}>{t.title}</span>
+                        </div>
+                        {notes[t.id].map(n => (
+                          <div key={n.id} style={{ background: "#faf8f3", border: "1px solid #eee7d6", borderRadius: 8, padding: "10px 12px", marginBottom: 8 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                              <p style={{ fontSize: 13.5, margin: 0, color: "#333", whiteSpace: "pre-wrap", flex: 1 }}>{n.text}</p>
+                              <button onClick={() => deleteNote(t.id, n.id)} style={{ border: "none", background: "none", color: "#b23a3a", cursor: "pointer", fontSize: 12, flexShrink: 0 }}>✕ delete</button>
+                            </div>
+                            {n.images && n.images.length > 0 && (
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                                {n.images.map((src, i) => <img key={i} src={src} alt="" style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 6, border: "1px solid #ddd" }} />)}
+                              </div>
+                            )}
+                            <div style={{ fontSize: 10.5, color: "#aaa", marginTop: 6 }}>{new Date(n.createdAt).toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {view === "calc" && <CalculatorSuite serif={serif} sans={sans} />}
+
+          </main>
+
+          <footer className="no-print" style={{ textAlign: "center", padding: "24px", fontSize: 12, color: "#a39d8c", borderTop: "1px solid #e6e1d6" }}>
+            Reflects material compiled from training notes and screenshots. Flagged items are unresolved — verify against BMO's live systems before operational use.
+          </footer>
+
+          <div className="print-only">
+            <PrintableSession notes={notes} />
+          </div>
+        </div>
+      );
+    }
+
+    function PrintableSession({ notes }) {
+      return (
+        <div style={{ padding: "20px", fontFamily: "Georgia, serif", color: "#111" }}>
+          <h1 style={{ fontSize: 26 }}>BMO HRFS Study Reference — Full Session</h1>
+          <p style={{ fontSize: 12, color: "#555" }}>Generated {new Date().toLocaleString()}. Reflects material compiled from training notes and screenshots — flagged items are unresolved; verify against BMO's live systems before operational use.</p>
+
+          <h2 style={{ fontSize: 18, marginTop: 24, borderBottom: "1px solid #999", paddingBottom: 4 }}>All Topics</h2>
+          {TOPICS.map(t => (
+            <div key={t.id} style={{ marginTop: 16, pageBreakInside: "avoid" }}>
+              <div style={{ fontSize: 14, fontWeight: "bold" }}>§{t.num} {t.priority ? "★ " : ""}{t.title} {t.flagged ? "⚠ FLAGGED" : ""}</div>
+              <div style={{ fontSize: 11, color: "#666", marginBottom: 3 }}>{t.category}</div>
+              <p style={{ fontSize: 12, margin: "4px 0" }}>{t.body}</p>
+              {t.rule && <p style={{ fontSize: 12, margin: "4px 0" }}><strong>Rule:</strong> {t.rule}</p>}
+              {t.facts && (
+                <ul style={{ fontSize: 12, margin: "4px 0" }}>
+                  {t.facts.map((f, i) => <li key={i}>{f}</li>)}
+                </ul>
+              )}
+              {t.flagged && <p style={{ fontSize: 11, color: "#a33" }}><strong>Flagged:</strong> {t.flagNote}</p>}
+            </div>
+          ))}
+
+          <h2 style={{ fontSize: 18, marginTop: 30, borderBottom: "1px solid #999", paddingBottom: 4, pageBreakBefore: "always" }}>KB / AR Reference Index</h2>
+          <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 10 }}>
+            <tbody>
+              {KB_INDEX.map(([kb, topic]) => (
+                <tr key={kb} style={{ borderBottom: "1px solid #ddd" }}>
+                  <td style={{ padding: "4px 8px 4px 0", fontFamily: "monospace", width: 140 }}>{kb}</td>
+                  <td style={{ padding: "4px 0" }}>{topic}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h2 style={{ fontSize: 18, marginTop: 30, borderBottom: "1px solid #999", paddingBottom: 4, pageBreakBefore: "always" }}>My Notes</h2>
+          {Object.keys(notes).filter(k => notes[k].length > 0).length === 0 ? (
+            <p style={{ fontSize: 12, color: "#777" }}>No notes saved in this browser yet.</p>
+          ) : (
+            TOPICS.filter(t => (notes[t.id] || []).length > 0).map(t => (
+              <div key={t.id} style={{ marginTop: 14, pageBreakInside: "avoid" }}>
+                <div style={{ fontSize: 13, fontWeight: "bold" }}>§{t.num} {t.title}</div>
+                {notes[t.id].map(n => (
+                  <div key={n.id} style={{ marginTop: 6, marginLeft: 10 }}>
+                    <p style={{ fontSize: 12, margin: "2px 0", whiteSpace: "pre-wrap" }}>{n.text}</p>
+                    {n.images && n.images.length > 0 && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "4px 0" }}>
+                        {n.images.map((src, i) => <img key={i} src={src} alt="" style={{ width: 100, height: 100, objectFit: "cover", border: "1px solid #ccc" }} />)}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 9.5, color: "#999" }}>{new Date(n.createdAt).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      );
+    }
+
+    function CalculatorSuite({ serif, sans }) {
+      const [calcTab, setCalcTab] = useState("payroll");
+
+      const card = { background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6", padding: 22 };
+      const label = { fontSize: 11.5, fontWeight: 700, color: "#8a8577", letterSpacing: "0.3px", display: "block", marginBottom: 6 };
+      const input = { width: "100%", padding: "9px 11px", borderRadius: 7, border: "1px solid #ddd6c8", fontSize: 13.5, boxSizing: "border-box", fontFamily: sans };
+      const resultBig = { fontSize: 26, fontWeight: 700, color: "#1f2a44", fontFamily: serif };
+
+      return (
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+            {[["payroll", "Daily Payroll"], ["weekly", "Weekly Timesheet"], ["salary", "Salary Rate"], ["vacation", "Vacation Accrual"], ["leaveprorate", "Leave Proration"], ["callin", "Call-In / On-Call"], ["calendar", "Pay Calendar"]].map(([key, lbl]) => (
+              <button key={key} onClick={() => setCalcTab(key)} style={{
+                padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                border: calcTab === key ? "1px solid transparent" : "1px solid #ddd6c8",
+                background: calcTab === key ? "#1f2a44" : "#fff", color: calcTab === key ? "#fff" : "#555"
+              }}>{lbl}</button>
+            ))}
+          </div>
+
+          {calcTab === "payroll" && <PayrollCalc card={card} label={label} input={input} resultBig={resultBig} serif={serif} />}
+          {calcTab === "weekly" && <WeeklyTimesheet card={card} label={label} input={input} resultBig={resultBig} serif={serif} />}
+          {calcTab === "salary" && <SalaryRateCalc card={card} label={label} input={input} resultBig={resultBig} serif={serif} />}
+          {calcTab === "vacation" && <VacationCalc card={card} label={label} input={input} resultBig={resultBig} serif={serif} />}
+          {calcTab === "leaveprorate" && <LeaveProrationCalc card={card} label={label} input={input} resultBig={resultBig} serif={serif} />}
+          {calcTab === "callin" && <CallInCalc card={card} label={label} input={input} resultBig={resultBig} serif={serif} />}
+          {calcTab === "calendar" && <PayCalendar serif={serif} sans={sans} />}
+        </div>
+      );
+    }
+
+    function FlagNote({ children }) {
+      return (
+        <div style={{ background: "#fdf1f1", border: "1px solid #e8c4c4", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#9a3f3f", marginTop: 14 }}>
+          ⚠ {children}
+        </div>
+      );
+    }
+
+    function PayrollCalc({ card, label, input, resultBig, serif }) {
+      const [rate, setRate] = useState(25);
+      const [hours, setHours] = useState(9);
+      const [dayType, setDayType] = useState("regular"); 
+      const [shiftPremium, setShiftPremium] = useState(false);
+      const [shiftHours, setShiftHours] = useState(0);
+
+      const BASE_LIMIT = 6, OT_LIMIT = 7.5;
+      const h = parseFloat(hours) || 0;
+      const r = parseFloat(rate) || 0;
+
+      const base = Math.min(h, BASE_LIMIT);
+      const additional = h > BASE_LIMIT ? Math.min(h, OT_LIMIT) - BASE_LIMIT : 0;
+      const ot = h > OT_LIMIT ? h - OT_LIMIT : 0;
+
+      let payout = 0;
+      if (dayType === "holiday-worked") {
+        payout = h * r * 1.5;
+      } else if (dayType === "float-used") {
+        payout = h * r;
+      } else {
+        payout = base * r + additional * r + ot * r * 1.5;
+      }
+      const premRate = r + r * 0.15;
+      const shiftAmt = shiftPremium ? (parseFloat(shiftHours) || 0) * premRate : 0;
+      const total = payout + shiftAmt;
+
+      return (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Inputs</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={label}>HOURLY RATE ($)</label>
+                <input type="number" value={rate} onChange={e => setRate(e.target.value)} style={input} />
+              </div>
+              <div>
+                <label style={label}>HOURS WORKED</label>
+                <input type="number" value={hours} onChange={e => setHours(e.target.value)} style={input} />
+              </div>
+              <div>
+                <label style={label}>DAY TYPE</label>
+                <select value={dayType} onChange={e => setDayType(e.target.value)} style={input}>
+                  <option value="regular">Regular Shift (Base/Additional/OT tiers)</option>
+                  <option value="holiday-worked">Holiday Worked (flat 1.5x)</option>
+                  <option value="float-used">Float Used (flat straight time)</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="checkbox" checked={shiftPremium} onChange={e => setShiftPremium(e.target.checked)} />
+                <label style={{ fontSize: 13 }}>Add Night Shift Premium (+15%)</label>
+              </div>
+              {shiftPremium && (
+                <div>
+                  <label style={label}>SHIFT PREMIUM HOURS</label>
+                  <input type="number" value={shiftHours} onChange={e => setShiftHours(e.target.value)} style={input} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Breakdown</div>
+            {dayType === "regular" ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13.5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Base (≤6 hrs) — straight time</span><span>{base.toFixed(2)} hrs × ${r.toFixed(2)} = ${(base * r).toFixed(2)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Additional (6–7.5 hrs)</span><span>{additional.toFixed(2)} hrs × ${r.toFixed(2)} = ${(additional * r).toFixed(2)}</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Overtime (&gt;7.5 hrs) — 1.5x</span><span>{ot.toFixed(2)} hrs × ${(r * 1.5).toFixed(2)} = ${(ot * r * 1.5).toFixed(2)}</span></div>
+                <FlagNote>The pay rate for the 6–7.5hr "Additional" band is assumed to be straight time (1.0x) — this specific rate was never explicitly confirmed in any source. Only the &gt;7.5hr overtime rate (1.5x) is verified.</FlagNote>
+              </div>
+            ) : (
+              <div style={{ fontSize: 13.5 }}>{h.toFixed(2)} hrs × ${(dayType === "holiday-worked" ? r * 1.5 : r).toFixed(2)} = ${payout.toFixed(2)}</div>
+            )}
+            {shiftPremium && (
+              <div style={{ marginTop: 10, fontSize: 13.5, borderTop: "1px solid #f0ece0", paddingTop: 10 }}>
+                Shift Premium: {shiftHours} hrs × ${premRate.toFixed(2)} (rate + 15%) = ${shiftAmt.toFixed(2)}
+              </div>
+            )}
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "2px solid #1f2a44", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#8a8577" }}>TOTAL</span>
+              <span style={resultBig}>${total.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function WeeklyTimesheet({ card, label, input, resultBig, serif }) {
+      const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const [scheduleHours, setScheduleHours] = useState(6);
+      const [otThreshold, setOtThreshold] = useState(7.5);
+      const [rate, setRate] = useState(25);
+      const [days, setDays] = useState(DAY_NAMES.map(() => 0));
+
+      const sh = parseFloat(scheduleHours) || 0;
+      const ot = parseFloat(otThreshold) || 0;
+      const r = parseFloat(rate) || 0;
+
+      function updateDay(i, val) {
+        const next = [...days];
+        next[i] = val;
+        setDays(next);
+      }
+
+      const rows = days.map((h, i) => {
+        const hrs = parseFloat(h) || 0;
+        const base = Math.min(hrs, sh);
+        const additional = hrs > sh ? Math.min(hrs, ot) - sh : 0;
+        const overtime = hrs > ot ? hrs - ot : 0;
+        const pay = base * r + additional * r + overtime * r * 1.5;
+        return { day: DAY_NAMES[i], hrs, base, additional, overtime, pay };
+      });
+
+      const totals = rows.reduce((acc, row) => ({
+        hrs: acc.hrs + row.hrs, base: acc.base + row.base, additional: acc.additional + row.additional,
+        overtime: acc.overtime + row.overtime, pay: acc.pay + row.pay
+      }), { hrs: 0, base: 0, additional: 0, overtime: 0, pay: 0 });
+
+      return (
+        <div>
+          <div style={{ ...card, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+            <div>
+              <label style={label}>SCHEDULE HOURS (BASE CUTOFF)</label>
+              <input type="number" step="0.5" value={scheduleHours} onChange={e => setScheduleHours(e.target.value)} style={input} />
+            </div>
+            <div>
+              <label style={label}>OVERTIME THRESHOLD</label>
+              <input type="number" step="0.5" value={otThreshold} onChange={e => setOtThreshold(e.target.value)} style={input} />
+            </div>
+            <div>
+              <label style={label}>HOURLY RATE ($)</label>
+              <input type="number" value={rate} onChange={e => setRate(e.target.value)} style={input} />
+            </div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 14 }}>Weekly Breakdown</div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #1f2a44" }}>
+                    <th style={{ textAlign: "left", padding: "8px 6px", fontSize: 11, color: "#8a8577" }}>DAY</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", fontSize: 11, color: "#8a8577" }}>HOURS</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", fontSize: 11, color: "#8a8577" }}>BASE</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", fontSize: 11, color: "#8a8577" }}>ADDITIONAL</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", fontSize: 11, color: "#8a8577" }}>OT (1.5x)</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", fontSize: 11, color: "#8a8577" }}>PAY</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={row.day} style={{ borderBottom: "1px solid #f0ece0" }}>
+                      <td style={{ padding: "8px 6px", fontWeight: 600 }}>{row.day}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "right" }}>
+                        <input type="number" step="0.5" value={days[i]} onChange={e => updateDay(i, e.target.value)}
+                          style={{ width: 60, padding: "5px 8px", borderRadius: 6, border: "1px solid #ddd6c8", textAlign: "right", fontSize: 13 }} />
+                      </td>
+                      <td style={{ padding: "8px 6px", textAlign: "right", color: "#555" }}>{row.base.toFixed(2)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "right", color: row.additional > 0 ? "#8A6D3B" : "#ccc" }}>{row.additional.toFixed(2)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "right", color: row.overtime > 0 ? "#b23a3a" : "#ccc" }}>{row.overtime.toFixed(2)}</td>
+                      <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 600 }}>${row.pay.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: "2px solid #1f2a44", fontWeight: 700 }}>
+                    <td style={{ padding: "10px 6px" }}>Total</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right" }}>{totals.hrs.toFixed(2)}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right" }}>{totals.base.toFixed(2)}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right", color: "#8A6D3B" }}>{totals.additional.toFixed(2)}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right", color: "#b23a3a" }}>{totals.overtime.toFixed(2)}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right", fontFamily: serif, fontSize: 15 }}>${totals.pay.toFixed(2)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <FlagNote>The "Additional" band's pay rate (between Schedule Hours and the Overtime Threshold) is assumed straight time — this specific rate has never been confirmed by any source. Only the Overtime rate (1.5x, above the threshold) is verified.</FlagNote>
+          </div>
+        </div>
+      );
+    }
+
+    function SalaryRateCalc({ card, label, input, resultBig, serif }) {
+      const [annualSalary, setAnnualSalary] = useState(50000);
+      const [country, setCountry] = useState("canada");
+
+      const DIVISOR = 26.089286;
+      const standardHours = country === "canada" ? 75 : 80;
+      const weeklyHours = standardHours / 2;
+
+      const salary = parseFloat(annualSalary) || 0;
+      const biWeekly = salary / DIVISOR;
+      const weekly = biWeekly / 2;
+      const hourly = biWeekly / standardHours;
+
+      return (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Inputs</div>
+            <label style={label}>ANNUAL BASE SALARY ($)</label>
+            <input type="number" value={annualSalary} onChange={e => setAnnualSalary(e.target.value)} style={input} />
+            <div style={{ marginTop: 14 }}>
+              <label style={label}>COUNTRY (SETS STANDARD HOURS)</label>
+              <select value={country} onChange={e => setCountry(e.target.value)} style={input}>
+                <option value="canada">Canada — 37.5 hrs/week (75 bi-weekly)</option>
+                <option value="us">United States — 40 hrs/week (80 bi-weekly)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Breakdown</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13.5, color: "#444" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Bi-Weekly Pay</span><span>${salary.toFixed(2)} ÷ {DIVISOR} = ${biWeekly.toFixed(2)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Weekly Pay</span><span>${biWeekly.toFixed(2)} ÷ 2 = ${weekly.toFixed(2)}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span>Hourly Rate</span><span>${biWeekly.toFixed(2)} ÷ {standardHours} hrs = ${hourly.toFixed(2)}</span></div>
+            </div>
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "2px solid #1f2a44", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#8a8577" }}>HOURLY RATE</span>
+              <span style={resultBig}>${hourly.toFixed(2)}/hr</span>
+            </div>
+            <div style={{ fontSize: 11.5, color: "#8a8577", marginTop: 10 }}>
+              Weekly figure is the bi-weekly amount split in half — this manual has never seen a source stating employees are actually paid on a weekly schedule; BMO's confirmed cycle is bi-weekly (Section 20 / Pay Calendar tab). Treat "weekly" here as a rate reference, not a real payment frequency.
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function VacationCalc({ card, label, input, resultBig, serif }) {
+      const [mode, setMode] = useState("hire");
+      const [annualBase, setAnnualBase] = useState(150);
+      const [monthsWorked, setMonthsWorked] = useState(9);
+      const [fte1Months, setFte1Months] = useState(4);
+      const [fte1Pct, setFte1Pct] = useState(100);
+      const [fte2Months, setFte2Months] = useState(8);
+      const [fte2Pct, setFte2Pct] = useState(50);
+      const [grade1Months, setGrade1Months] = useState(4);
+      const [grade1Base, setGrade1Base] = useState(112.5);
+      const [grade2Months, setGrade2Months] = useState(8);
+      const [grade2Base, setGrade2Base] = useState(150);
+      const [loaEnabled, setLoaEnabled] = useState(false);
+      const [loaMonths, setLoaMonths] = useState(7);
+
+      const mve = (parseFloat(annualBase) || 0) / 12;
+      let net = 0, steps = [];
+
+      if (mode === "hire") {
+        const m = parseFloat(monthsWorked) || 0;
+        net = m * mve;
+        steps = [`M.V.E = ${annualBase} ÷ 12 =${mve.toFixed(3)} hrs/month`, `${m} months × ${mve.toFixed(3)} =${net.toFixed(3)} hours`];
+      } else if (mode === "fte") {
+        const m1 = parseFloat(fte1Months) || 0, p1 = (parseFloat(fte1Pct) || 0) / 100;
+        const m2 = parseFloat(fte2Months) || 0, p2 = (parseFloat(fte2Pct) || 0) / 100;
+        const a1 = m1 * mve * p1, a2 = m2 * mve * p2;
+        net = a1 + a2;
+        steps = [`Period 1: ${m1} mo × ${mve.toFixed(3)} × ${(p1 * 100).toFixed(0)}\% =${a1.toFixed(3)} hrs`, `Period 2: ${m2} mo × ${mve.toFixed(3)} × ${(p2 * 100).toFixed(0)}\% =${a2.toFixed(3)} hrs`, `Total = ${a1.toFixed(3)} + ${a2.toFixed(3)} =${net.toFixed(3)} hours`];
+      } else if (mode === "grade") {
+        const m1 = parseFloat(grade1Months) || 0, b1 = parseFloat(grade1Base) || 0;
+        const m2 = parseFloat(grade2Months) || 0, b2 = parseFloat(grade2Base) || 0;
+        const a1 = m1 * (b1 / 12), a2 = m2 * (b2 / 12);
+        net = a1 + a2;
+        steps = [`Grade 1: ${m1} mo × (${b1} ÷ 12) =${a1.toFixed(3)} hrs`, `Grade 2: ${m2} mo × (${b2} ÷ 12) =${a2.toFixed(3)} hrs`, `Total = ${a1.toFixed(3)} + ${a2.toFixed(3)} =${net.toFixed(3)} hours`];
+      }
+
+      let deduction = 0;
+      if (loaEnabled) {
+        deduction = (parseFloat(loaMonths) || 0) * mve;
+        net = Math.max(0, net - deduction);
+      }
+
+      return (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Scenario</div>
+            <select value={mode} onChange={e => setMode(e.target.value)} style={{ ...input, marginBottom: 14 }}>
+              <option value="hire">Hire / Termination</option>
+              <option value="fte">Change in FTE (split year)</option>
+              <option value="grade">Change in Job Grade (split year)</option>
+            </select>
+
+            <div>
+              <label style={label}>ANNUAL BASE ALLOWANCE (HRS)</label>
+              <input type="number" value={annualBase} onChange={e => setAnnualBase(e.target.value)} style={input} />
+            </div>
+
+            {mode === "hire" && (
+              <div style={{ marginTop: 14 }}>
+                <label style={label}>MONTHS ACTIVE</label>
+                <input type="number" value={monthsWorked} onChange={e => setMonthsWorked(e.target.value)} style={input} />
+              </div>
+            )}
+
+            {mode === "fte" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                <div><label style={label}>PERIOD 1 MONTHS</label><input type="number" value={fte1Months} onChange={e => setFte1Months(e.target.value)} style={input} /></div>
+                <div><label style={label}>PERIOD 1 FTE %</label><input type="number" value={fte1Pct} onChange={e => setFte1Pct(e.target.value)} style={input} /></div>
+                <div><label style={label}>PERIOD 2 MONTHS</label><input type="number" value={fte2Months} onChange={e => setFte2Months(e.target.value)} style={input} /></div>
+                <div><label style={label}>PERIOD 2 FTE %</label><input type="number" value={fte2Pct} onChange={e => setFte2Pct(e.target.value)} style={input} /></div>
+              </div>
+            )}
+
+            {mode === "grade" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                <div><label style={label}>GRADE 1 MONTHS</label><input type="number" value={grade1Months} onChange={e => setGrade1Months(e.target.value)} style={input} /></div>
+                <div><label style={label}>GRADE 1 BASE (HRS)</label><input type="number" value={grade1Base} onChange={e => setGrade1Base(e.target.value)} style={input} /></div>
+                <div><label style={label}>GRADE 2 MONTHS</label><input type="number" value={grade2Months} onChange={e => setGrade2Months(e.target.value)} style={input} /></div>
+                <div><label style={label}>GRADE 2 BASE (HRS)</label><input type="number" value={grade2Base} onChange={e => setGrade2Base(e.target.value)} style={input} /></div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f0ece0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: loaEnabled ? 10 : 0 }}>
+                <input type="checkbox" checked={loaEnabled} onChange={e => setLoaEnabled(e.target.checked)} />
+                <label style={{ fontSize: 13 }}>Deduct Unpaid LOA</label>
+              </div>
+              {loaEnabled && (
+                <div>
+                  <label style={label}>UNPAID MONTHS</label>
+                  <input type="number" value={loaMonths} onChange={e => setLoaMonths(e.target.value)} style={input} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Calculation</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13.5, color: "#444" }}>
+              {steps.map((s, i) => <div key={i}>• {s}</div>)}
+              {loaEnabled && <div style={{ color: "#b23a3a" }}>• LOA deduction: {loaMonths} mo × {mve.toFixed(3)} = −{deduction.toFixed(3)} hrs</div>}
+            </div>
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "2px solid #1f2a44", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#8a8577" }}>NET ENTITLEMENT</span>
+              <span style={resultBig}>{net.toFixed(2)} hrs</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function LeaveProrationCalc({ card, label, input, resultBig, serif }) {
+      const [totalEntitlement, setTotalEntitlement] = useState(112.5);
+      const [p1Months, setP1Months] = useState(5);
+      const [p1Fte, setP1Fte] = useState(50);
+      const [p2Months, setP2Months] = useState(7);
+      const [p2Fte, setP2Fte] = useState(80);
+
+      const total = parseFloat(totalEntitlement) || 0;
+      const monthlyBase = total / 12;
+
+      const m1 = parseFloat(p1Months) || 0, f1 = (parseFloat(p1Fte) || 0) / 100;
+      const m2 = parseFloat(p2Months) || 0, f2 = (parseFloat(p2Fte) || 0) / 100;
+
+      const contrib1 = monthlyBase * f1 * m1;
+      const contrib2 = monthlyBase * f2 * m2;
+      const totalUsable = contrib1 + contrib2;
+      const monthTotal = m1 + m2;
+
+      return (
+        <div>
+          <div style={{ background: "#fdf1f1", border: "1px solid #e8c4c4", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#9a3f3f" }}>
+            ⚠ Built on the confirmed split-period method (Vacation Accrual, same formula) — but the specific worked example that prompted this tool had a contradiction between its stated FTE order and its actual math. Enter your own periods below in whichever order matches your real situation, and check the math yourself rather than trusting a pre-filled example.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div style={card}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Inputs</div>
+              <label style={label}>TOTAL ANNUAL ENTITLEMENT (HRS, BY JOB GRADE)</label>
+              <input type="number" value={totalEntitlement} onChange={e => setTotalEntitlement(e.target.value)} style={input} />
+
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f0ece0" }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6D3B", marginBottom: 8 }}>PERIOD 1</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div><label style={label}>MONTHS</label><input type="number" value={p1Months} onChange={e => setP1Months(e.target.value)} style={input} /></div>
+                  <div><label style={label}>FTE %</label><input type="number" value={p1Fte} onChange={e => setP1Fte(e.target.value)} style={input} /></div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6D3B", marginBottom: 8 }}>PERIOD 2</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div><label style={label}>MONTHS</label><input type="number" value={p2Months} onChange={e => setP2Months(e.target.value)} style={input} /></div>
+                  <div><label style={label}>FTE %</label><input type="number" value={p2Fte} onChange={e => setP2Fte(e.target.value)} style={input} /></div>
+                </div>
+              </div>
+              {monthTotal !== 12 && (
+                <div style={{ fontSize: 11.5, color: "#b23a3a", marginTop: 10 }}>⚠ Periods total {monthTotal} months, not 12 — double check your month split.</div>
+              )}
+            </div>
+
+            <div style={card}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Calculation</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13.5, color: "#444" }}>
+                <div>Monthly base = {total.toFixed(2)} ÷ 12 = {monthlyBase.toFixed(4)} hrs/month</div>
+                <div>Period 1 = {monthlyBase.toFixed(4)} × {(f1 * 100).toFixed(0)}% × {m1} mo = {contrib1.toFixed(2)} hrs</div>
+                <div>Period 2 = {monthlyBase.toFixed(4)} × {(f2 * 100).toFixed(0)}% × {m2} mo = {contrib2.toFixed(2)} hrs</div>
+              </div>
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: "2px solid #1f2a44", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#8a8577" }}>TOTAL USABLE LEAVE</span>
+                <span style={resultBig}>{totalUsable.toFixed(2)} hrs</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function CallInCalc({ card, label, input, resultBig, serif }) {
+      const [rate, setRate] = useState(30);
+      const [otEligible, setOtEligible] = useState(true);
+      const [standbyDayType, setStandbyDayType] = useState("weekday");
+
+      const r = parseFloat(rate) || 0;
+      const callInTotal = otEligible ? 3 * 1.5 * r : 3 * r;
+      const standbyRates = { weekday: 1.5, weekend: 2.0, holiday: 2.5 };
+      const standbyRate = standbyRates[standbyDayType];
+
+      return (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>Emergency Call-In Pay</div>
+            <label style={label}>HOURLY RATE ($)</label>
+            <input type="number" value={rate} onChange={e => setRate(e.target.value)} style={input} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+              <input type="checkbox" checked={otEligible} onChange={e => setOtEligible(e.target.checked)} />
+              <label style={{ fontSize: 13 }}>Employee is overtime-eligible</label>
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f0ece0", fontSize: 13.5, color: "#444" }}>
+              {otEligible
+                ? `3 hrs (minimum) × 1.5 × $${r.toFixed(2)} =$${callInTotal.toFixed(2)}`
+                : `3 hrs (minimum) × $${r.toFixed(2)} (straight time) =$${callInTotal.toFixed(2)}`}
+            </div>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "2px solid #1f2a44", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#8a8577" }}>TOTAL</span>
+              <span style={resultBig}>${callInTotal.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 16 }}>On-Call Standby Rate (Canada)</div>
+            <label style={label}>PERIOD</label>
+            <select value={standbyDayType} onChange={e => setStandbyDayType(e.target.value)} style={input}>
+              <option value="weekday">Monday–Friday</option>
+              <option value="weekend">Saturday / Sunday</option>
+              <option value="holiday">Statutory Holiday</option>
+            </select>
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "2px solid #1f2a44", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#8a8577" }}>STANDBY RATE</span>
+              <span style={resultBig}>${standbyRate.toFixed(2)}/hr</span>
+            </div>
+            <div style={{ fontSize: 12, color: "#8a8577", marginTop: 10 }}>Paid for being available, separate from any call-in pay if actually called to work.</div>
+          </div>
+        </div>
+      );
+    }
+
+    function addDays(date, n) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + n);
+      return d;
+    }
+    function fmt(d) {
+      return d.toISOString().slice(0, 10);
+    }
+    function nextSunday(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      if (day !== 0) d.setDate(d.getDate() + (7 - day));
+      return d;
+    }
+
+    function PayCalendar({ serif, sans }) {
+      const today = new Date();
+      const defaultAnchor = fmt(nextSunday(today));
+      const [anchor, setAnchor] = useState(defaultAnchor);
+      const [viewMonth, setViewMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+      const [cutoffDay, setCutoffDay] = useState("sunday"); 
+
+      const anchorDate = new Date(anchor + "T00:00:00");
+      const cutoffOffset = cutoffDay === "monday" ? 8 : 7;
+      const milestones = [
+        { key: "begin", label: "Period Begin", date: anchorDate, color: "#2E8B57" },
+        { key: "cutoff", label: "Cut-off", date: addDays(anchorDate, cutoffOffset), color: "#B8860B" },
+        { key: "slip", label: "Pay Slip Generated", date: addDays(anchorDate, 10), color: "#6A5ACD" },
+        { key: "pay", label: "PAY DATE", date: addDays(anchorDate, 12), color: "#B23A3A" },
+        { key: "end", label: "Period End", date: addDays(anchorDate, 13), color: "#2E8B57" },
+        { key: "exccutoff", label: "Exception Hours Cut-off", date: addDays(anchorDate, 15), color: "#B8860B" },
+        { key: "excpay", label: "Exception Hours Pay Date", date: addDays(anchorDate, 26), color: "#B23A3A" },
+      ];
+      const milestoneByDate = {};
+      milestones.forEach(m => { milestoneByDate[fmt(m.date)] = m; });
+
+      function buildMonthGrid(monthDate) {
+        const year = monthDate.getFullYear(), month = monthDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const startOffset = firstDay.getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const cells = [];
+        for (let i = 0; i < startOffset; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+        while (cells.length % 7 !== 0) cells.push(null);
+        return cells;
+      }
+
+      const cells = buildMonthGrid(viewMonth);
+      const monthLabel = viewMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+      const label = { fontSize: 11.5, fontWeight: 700, color: "#8a8577", letterSpacing: "0.3px", display: "block", marginBottom: 6 };
+      const input = { padding: "9px 11px", borderRadius: 7, border: "1px solid #ddd6c8", fontSize: 13.5, fontFamily: sans };
+
+      return (
+        <div>
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6", padding: 20, marginBottom: 18 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif, marginBottom: 4 }}>Pay Cycle Calendar</div>
+            <p style={{ fontSize: 13, color: "#666", marginTop: 0, marginBottom: 14, lineHeight: 1.6 }}>
+              Set a known Pay Period Begin date (must be a Sunday) and this calculates every milestone from the confirmed cycle pattern — cut-off, pay slip generation, pay date, and exception hours handling.
+            </p>
+            <label style={label}>PAY PERIOD BEGIN DATE (SUNDAY)</label>
+            <input type="date" value={anchor} onChange={e => {
+              const d = new Date(e.target.value + "T00:00:00");
+              setAnchor(fmt(nextSunday(d)));
+              setViewMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+            }} style={input} />
+            {new Date(anchor + "T00:00:00").getDay() !== 0 && (
+              <span style={{ fontSize: 12, color: "#b23a3a", marginLeft: 10 }}>Adjusted to the nearest Sunday.</span>
+            )}
+
+            <div style={{ marginTop: 14 }}>
+              <label style={label}>CUT-OFF DAY</label>
+              <select value={cutoffDay} onChange={e => setCutoffDay(e.target.value)} style={input}>
+                <option value="sunday">Sunday (as documented in the training manual)</option>
+                <option value="monday">Monday (as reported from direct work experience)</option>
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 16 }}>
+              {milestones.map(m => (
+                <div key={m.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: m.color, display: "inline-block" }} />
+                  <span style={{ color: "#555" }}>{m.label}: <strong>{m.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</strong></span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: "#fdf1f1", border: "1px solid #e8c4c4", borderRadius: 8, padding: "10px 14px", marginTop: 14, fontSize: 12, color: "#9a3f3f" }}>
+              ⚠ The training manual states the cut-off falls on <strong>Sunday</strong>. You've separately reported <strong>Monday</strong> from direct experience — these conflict, and the toggle above lets you view either. Whichever matches your actual paystub timing is the one to trust going forward; consider that a correction to the source document, not a settled fact this tool can resolve on its own.
+            </div>
+            <div style={{ background: "#fdf1f1", border: "1px solid #e8c4c4", borderRadius: 8, padding: "10px 14px", marginTop: 10, fontSize: 12, color: "#9a3f3f" }}>
+              ⚠ Separately, a claim that US and Canada employees are paid on different lags (1 week vs. 2 weeks after the work period) was raised in conversation but is still <strong>not confirmed</strong> by any source reviewed — this calendar does not assume that split.
+            </div>
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e6e1d6", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))} style={{ border: "1px solid #ddd6c8", background: "#fff", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>‹ Prev</button>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2a44", fontFamily: serif }}>{monthLabel}</div>
+              <button onClick={() => setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))} style={{ border: "1px solid #ddd6c8", background: "#fff", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}>Next ›</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: "#8a8577", padding: "6px 0" }}>{d}</div>
+              ))}
+              {cells.map((d, i) => {
+                const m = d ? milestoneByDate[fmt(d)] : null;
+                return (
+                  <div key={i} style={{
+                    minHeight: 56, borderRadius: 7, padding: 6, fontSize: 12,
+                    background: m ? m.color : (d ? "#faf8f3" : "transparent"),
+                    color: m ? "#fff" : "#333",
+                    border: d ? "1px solid " + (m ? m.color : "#eee7d6") : "none"
+                  }}>
+                    {d && <div style={{ fontWeight: m ? 700 : 400 }}>{d.getDate()}</div>}
+                    {m && <div style={{ fontSize: 9.5, marginTop: 2, lineHeight: 1.2 }}>{m.label}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Mount to Root Container
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
